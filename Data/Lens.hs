@@ -3,7 +3,9 @@ module Data.Lens
   -- * State API
   , access         -- getter -- :: MonadState a m => Lens a b -> m b
   , (~=), (!=)     -- setter -- :: MonadState a m => Lens a b -> b -> m b
+  , ($~=), ($!=)   -- setter -- :: MonadState a m => Lens a b -> b -> m ()
   , (%=), (!%=)    -- modify -- :: MonadState a m => Lens a b -> (b -> b) -> m b
+  , ($%=), ($!%=)   -- modify -- :: MonadState a m => Lens a b -> (b -> b) -> m ()
   , (%%=), (!%%=)  -- modify -- :: MonadState a m => Lens a b -> (b -> (c, b)) -> m c
   , (+=), (!+=)    -- modify -- :: (MonadState a m, Num b) => Lens a b -> b -> m b
   , (-=), (!-=)    -- modify -- :: (MonadState a m, Num b) => Lens a b -> b -> m b
@@ -39,6 +41,16 @@ Lens f != b = do
   put (h $! b)
   return b
 
+infixr 4 $~=, $!=
+
+-- | set a value using a lens into state, returning ()
+($~=), ($!=) :: MonadState a m => Lens a b -> b -> m ()
+Lens f $~= b = do
+  modify (peek b . f)
+Lens f $!= b = do
+  StoreT (Identity h) _ <- gets f
+  put (h $! b)
+
 infixr 4 %=, !%=
     
 -- | infix modification a value through a lens into state
@@ -53,6 +65,20 @@ Lens f !%= g = do
   let b' = g b
   b' `seq` put (h b')
   return b'
+
+infixr 4 $%=, $!%=
+
+-- | infix modification of a value through a lens into state, returning ()
+
+($%=), ($!%=) :: MonadState a m => Lens a b -> (b -> b) -> m ()
+Lens f $%= g = do
+  StoreT (Identity h) b <- gets f
+  let b' = g b
+  put (h b')
+Lens f $!%= g = do
+  StoreT (Identity h) b <- gets f
+  let b' = g b
+  b' `seq` put (h b')
 
 infixr 4 %%=, !%%=
 
