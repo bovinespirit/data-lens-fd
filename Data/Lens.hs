@@ -1,3 +1,5 @@
+-- | This module defines actions that allow the modification of individual
+-- fields in a 'MonadState'.
 module Data.Lens
   ( module Data.Lens.Common
   -- * State API
@@ -22,32 +24,46 @@ import Data.Lens.Lazy (focus)
 
 -- * State actions
 
--- | get the value of a lens into state
+-- | Get the value of a lens from state
+--
+-- >> value <- access field_name
 access :: MonadState a m => Lens a b -> m b
 access (Lens f) = gets (pos . f)
 {-# INLINE access #-}
 
 infixr 4 ~=, !=
 
--- | set a value using a lens into state
-(~=), (!=) :: MonadState a m => Lens a b -> b -> m b
+-- | Set a value using a lens into state
+--
+-- >> new_value <- field_name ~= value
+(~=) :: MonadState a m => Lens a b -> b -> m b
 Lens f ~= b = do
   modify (peek b . f)
   return b
+-- | Set a value using a lens into state strictly
+--
+-- >> new_value <- field_name !~= value
+(!=) :: MonadState a m => Lens a b -> b -> m b
 Lens f != b = do
   StoreT (Identity h) _ <- gets f
   put (h $! b)
   return b
 
 infixr 4 %=, !%=
-    
--- | infix modification a value through a lens into state
-(%=), (!%=) :: MonadState a m => Lens a b -> (b -> b) -> m b
+
+-- | Infix modification of a value through a lens into state
+--
+-- >> new_value <- field_name %= function
+(%=)  :: MonadState a m => Lens a b -> (b -> b) -> m b
 Lens f %= g = do
   StoreT (Identity h) b <- gets f
   let b' = g b
   put (h b')
   return b'
+-- | Strict Infix modification of a value through a lens into state
+--
+-- >> new_value <- field_name !%= function
+(!%=) :: MonadState a m => Lens a b -> (b -> b) -> m b
 Lens f !%= g = do
   StoreT (Identity h) b <- gets f
   let b' = g b
@@ -56,14 +72,21 @@ Lens f !%= g = do
 
 infixr 4 %%=, !%%=
 
--- | infix modification of a value through a lens into state
+-- | Infix modification of a value through a lens into state
 -- with a supplemental response
-(%%=), (!%%=) :: MonadState a m => Lens a b -> (b -> (c, b)) -> m c
+--
+-- >> other_value <- field_name %%= function
+(%%=) :: MonadState a m => Lens a b -> (b -> (c, b)) -> m c
 Lens f %%= g = do
   StoreT (Identity h) b <- gets f
   let (c, b') = g b
   put (h b')
   return c
+-- | Strict infix modification of a value through a lens into state
+-- with a supplemental response
+--
+-- >> other_value <- field_name !%%= function
+(!%%=) :: MonadState a m => Lens a b -> (b -> (c, b)) -> m c
 Lens f !%%= g = do
   StoreT (Identity h) b <- gets f
   let (c, b') = g b
